@@ -1,0 +1,77 @@
+Repository OCSIN SQL 
+SELECT socket_count, cores_per_socket, cpu_count,@@VERSION as VERSION,@@SERVERNAME as INSTANCE
+ FROM sys.dm_os_sys_info;
+
+*********** 
+Get-DbaRegServer -SqlInstance ILMDEV01\T12GDIREF -Group Rec |Invoke-DbaQuery -Query "SELECT socket_count, cores_per_socket, cpu_count,@@VERSION as VERSION,@@SERVERNAME as INSTANCE  FROM sys.dm_os_sys_info;" |select-Object Instance,cpu_count,VERSION
+ 
+Get-DbaRegServer -SqlInstance ILMDEV01\T12GDIREF -Group Rec |Invoke-DbaQuery -Query "SELECT cpu_count,@@VERSION as VERSION,@@SERVERNAME as INSTANCE  FROM sys.dm_os_sys_info;" |select-Object Instance,cpu_count,VERSION
+ 
+Get-DbaRegServer -SqlInstance ILMDEV01\T12GDIREF -Group Rec|Invoke-DbaQuery -Query "SELECT cpu_count,@@VERSION as VERSION,@@SERVERNAME as INSTANCE  FROM sys.dm_os_sys_info;" |select-Object Instance,cpu_count,VERSION | Export-csv -path C:\Users\VSRMILLIONBRODJ\Documents\SQL_VERSION.csv -NoTypeInformation
+ 
+Import-DbaCsv -path C:\Users\VSRMILLIONBRODJ\Documents\SQL_VERSION.csv -SqlInstance ILMDEV01\T12GDIREF -Database REPOSITORY_SGBD -AutoCreateTable -truncate
+
+
+************************************
+************************************ 
+CREATE TABLE [dbo].[SQL_VERSION](
+	[INSTANCE] [varchar](max) NULL,
+	[cpu_count] [varchar](max) NULL,
+	[VERSION] [varchar](max) NULL,
+	[VERSION_SQL]  AS (substring([VERSION],(21),(5))),
+	[RELEASE]  AS (substring([VERSION],patindex('%corporation%',[VERSION])+(13),(patindex('%Edition%',[VERSION])-patindex('%corporation%',[VERSION]))-(6))) PERSISTED
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+
+
+
+
+
+USE [REPOSITORY_SGBD]
+GO
+
+/****** Object:  View [dbo].[V_SQL_VERSION]    Script Date: 12.12.2022 13:24:23 ******/
+DROP VIEW [dbo].[V_SQL_VERSION]
+GO
+
+/****** Object:  View [dbo].[V_SQL_VERSION]    Script Date: 12.12.2022 13:24:23 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+/****** Script for SelectTopNRows command from SSMS  ******/
+create VIEW [dbo].[V_SQL_VERSION] 
+as 
+(
+SELECT distinct [INSTANCE]
+      ,Vcpu
+      ,[VERSION]
+	  ,VERSION_SQL
+	  ,RELEASE
+	  ,SERVER=
+			CASE 
+			WHEN patindex('%\%',INSTANCE)>0 THEN substring(INSTANCE,1,(patindex('%\%',INSTANCE)-1))
+			ELSE INSTANCE
+			END
+  FROM [REPOSITORY_SGBD].[dbo].[SQL_VERSION]
+)
+GO
+
+
+*******************************************
+QUERY PARC INSTANCES
+*******************************************
+ 
+Get-ADComputer -filter '*' | Find-DbaInstance |Export-csv -path C:\Users\VSRMILLIONBRODJ\Documents\SQL_INSTANCES.csv -NoTypeInformation
+
+Get-ADComputer -filter 'Name -notlike "VW-*" -and Name -notlike "MW-*" -and Name -notlike "FS-*" -and Name -notlike "MS-*" -and Name -notlike "FW-*"'  -searchBase "DC=ge-admin,DC=ad,DC=etat-ge,DC=ch"|Find-DbaInstance |Export-csv -path C:\Users\VSRMILLIONBRODJ\Documents\SQL_INSTANCES.csv -NoTypeInformation
+
+Get-ADComputer -filter 'Name -notlike "VW-*" -and Name -notlike "MW-*" -and Name -notlike "FS-*" -and Name -notlike "MS-*" -and Name -notlike "FW-*"' |Find-DbaInstance |Export-csv -path C:\Users\VSRMILLIONBRODJ\Documents\SQL_INSTANCES_$(Get-date -F ddMMyy).csv -NoTypeInformation
+
+
+$liste=Get-content -path server_from_smart.txt
+foreach ($server in $liste) {Find-DbaInstance -computer $server|Invoke-DbaQuery -Query 'SELECT cpu_count,@@VERSION as VERSION,@@SERVERNAME as INSTANCE  FROM sys.dm_os_sys_info;'|select-Object Instance,cpu_count,VERSION}
+
